@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f8f4">
+  <meta name="description" content="Check suspicious messages and links for common phishing warning signs. Analysis happens locally in your browser.">
+  <title>SignalCheck — Pause before you click</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #152a24;
+      --muted: #64736d;
+      --line: #dce5de;
+      --paper: #f6f8f4;
+      --white: #fff;
+      --green: #176b4b;
+      --green-dark: #10543a;
+      --green-soft: #e7f3eb;
+      --lime: #d9f278;
+      --amber: #b76a13;
+      --red: #b5473b;
+      --shadow: 0 24px 70px rgba(28, 55, 43, .09);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); }
+    button, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .page { min-height: 100vh; overflow: hidden; position: relative; }
+    .page::before { content: ""; position: absolute; z-index: 0; width: 570px; height: 570px; border-radius: 50%; background: radial-gradient(circle, rgba(220,239,188,.46), rgba(246,248,244,0) 70%); top: 155px; left: -270px; pointer-events: none; }
+    .wrap { width: min(1160px, calc(100% - 56px)); margin: 0 auto; position: relative; z-index: 1; }
+    header { height: 82px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(21,42,36,.09); }
+    .brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; font-weight: 750; letter-spacing: -.04em; font-size: 19px; }
+    .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--green); color: white; }
+    .brand-mark svg { width: 20px; height: 20px; }
+    .header-note { display: inline-flex; align-items: center; gap: 8px; color: #4c6659; font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+    .pulse { width: 7px; height: 7px; border-radius: 50%; background: #72aa5c; box-shadow: 0 0 0 4px #e5f0dc; }
+    main { padding: 64px 0 46px; }
+    .intro { max-width: 700px; margin: 0 auto 38px; text-align: center; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--green); font-size: 12px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 17px; }
+    .eyebrow svg { width: 15px; height: 15px; }
+    h1 { font-size: clamp(42px, 6vw, 66px); line-height: .99; letter-spacing: -.065em; margin: 0; font-weight: 720; }
+    .intro p { margin: 19px auto 0; max-width: 560px; color: var(--muted); font-size: 16px; line-height: 1.65; }
+    .scanner { display: grid; grid-template-columns: minmax(0, 1.07fr) minmax(360px, .93fr); background: var(--white); border: 1px solid #e2e9e3; border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; min-height: 438px; }
+    .input-side { padding: 28px 30px 26px; border-right: 1px solid #e8ede9; }
+    .section-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 19px; }
+    .section-top h2 { font-size: 16px; margin: 0 0 5px; letter-spacing: -.02em; }
+    .section-top p { margin: 0; color: #829088; font-size: 12px; }
+    .local-tag { display: flex; align-items: center; gap: 6px; color: #597366; background: #f0f6f0; padding: 7px 9px; border-radius: 99px; white-space: nowrap; font-size: 10px; font-weight: 700; }
+    .local-tag svg { width: 13px; height: 13px; }
+    .input-shell { border: 1px solid #dce5de; border-radius: 13px; overflow: hidden; transition: border-color .18s, box-shadow .18s; }
+    .input-shell:focus-within { border-color: #77a78b; box-shadow: 0 0 0 3px rgba(23,107,75,.09); }
+    textarea { width: 100%; min-height: 222px; display: block; resize: vertical; border: 0; outline: 0; color: var(--ink); padding: 17px 17px 12px; font-size: 14px; line-height: 1.65; background: #fff; }
+    textarea::placeholder { color: #9aa8a0; }
+    .input-meta { display: flex; justify-content: space-between; padding: 8px 13px 11px; color: #95a19a; font-size: 11px; }
+    .input-actions { display: flex; align-items: center; gap: 10px; margin-top: 15px; }
+    .analyze { height: 47px; display: flex; align-items: center; justify-content: center; gap: 9px; border: 0; border-radius: 10px; padding: 0 19px; background: var(--green); color: #fff; font-size: 13px; font-weight: 700; transition: transform .15s, background .15s; }
+    .analyze:hover { background: var(--green-dark); transform: translateY(-1px); }
+    .analyze:focus-visible, .quiet-button:focus-visible, .example:focus-visible { outline: 3px solid #a8d0b4; outline-offset: 3px; }
+    .analyze svg { width: 16px; height: 16px; }
+    .quiet-button { border: 0; background: transparent; color: #718078; padding: 10px 9px; font-size: 12px; font-weight: 650; }
+    .quiet-button:hover { color: var(--green); }
+    .example { margin-left: auto; border: 0; border-bottom: 1px dotted #91a59a; padding: 4px 0; color: #536d60; background: none; font-size: 11px; font-weight: 650; }
+    .result-side { padding: 28px 30px 25px; background: linear-gradient(145deg, #fbfcfa, #f6f9f5); display: flex; flex-direction: column; }
+    .result-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+    .result-heading h2 { margin: 0; font-size: 16px; letter-spacing: -.02em; }
+    .result-state { color: #89968f; font-size: 11px; font-weight: 650; }
+    .score-panel { display: flex; align-items: center; gap: 20px; min-height: 166px; padding: 13px 16px; border: 1px solid #e6ece7; background: rgba(255,255,255,.84); border-radius: 15px; }
+    .gauge { flex: 0 0 118px; width: 118px; height: 118px; display: grid; place-items: center; border-radius: 50%; background: conic-gradient(var(--gauge-color, #b9c8bd) var(--gauge-angle, 0deg), #e9efea 0); position: relative; }
+    .gauge::before { content: ""; position: absolute; inset: 7px; background: #fff; border-radius: 50%; }
+    .gauge-copy { position: relative; z-index: 1; text-align: center; }
+    .gauge-value { font-size: 33px; line-height: 1; letter-spacing: -.07em; font-weight: 760; }
+    .gauge-label { margin-top: 5px; color: #809087; text-transform: uppercase; letter-spacing: .1em; font-size: 9px; font-weight: 750; }
+    .score-copy { min-width: 0; }
+    .risk-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; margin-bottom: 9px; border-radius: 30px; color: #61776a; background: #edf3ee; font-size: 10px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+    .risk-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #91a398; }
+    .score-copy h3 { margin: 0 0 5px; font-size: 19px; line-height: 1.2; letter-spacing: -.04em; }
+    .score-copy p { margin: 0; color: #718078; font-size: 12px; line-height: 1.55; }
+    .findings { margin-top: 20px; flex: 1; }
+    .findings-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .findings-head h3 { margin: 0; font-size: 12px; font-weight: 750; }
+    .finding-count { color: #8a9790; font-size: 10px; }
+    .finding-list { display: grid; gap: 8px; max-height: 136px; overflow-y: auto; padding-right: 2px; }
+    .empty-finding { min-height: 72px; display: flex; align-items: center; gap: 11px; padding: 12px; color: #829088; border: 1px dashed #dbe5dd; border-radius: 11px; font-size: 11px; line-height: 1.5; }
+    .empty-icon { flex: 0 0 31px; width: 31px; height: 31px; border-radius: 9px; display: grid; place-items: center; color: var(--green); background: #edf5ee; }
+    .empty-icon svg { width: 16px; height: 16px; }
+    .finding { display: grid; grid-template-columns: 24px 1fr auto; gap: 9px; align-items: start; padding: 10px 11px; background: white; border: 1px solid #e8ede9; border-radius: 10px; }
+    .finding-icon { width: 23px; height: 23px; display: grid; place-items: center; background: #fff3e7; color: var(--amber); border-radius: 7px; font-size: 12px; font-weight: 800; }
+    .finding-title { color: #294238; font-size: 11px; font-weight: 720; line-height: 1.4; }
+    .finding-detail { margin-top: 2px; color: #839088; font-size: 10px; line-height: 1.4; }
+    .finding-points { color: #8b7561; font-size: 10px; font-weight: 750; white-space: nowrap; }
+    .safety-note { display: flex; gap: 8px; align-items: flex-start; margin-top: 15px; padding-top: 13px; border-top: 1px solid #e6ece7; color: #79867f; font-size: 10px; line-height: 1.5; }
+    .safety-note svg { flex: 0 0 14px; width: 14px; height: 14px; color: #7da286; margin-top: 1px; }
+    .below { display: flex; justify-content: center; align-items: center; gap: 27px; padding: 25px 0 0; color: #7c8a82; font-size: 11px; }
+    .below span { display: inline-flex; align-items: center; gap: 7px; }
+    .below svg { width: 14px; height: 14px; color: #799583; }
+    footer { padding: 26px 0 29px; text-align: center; color: #96a199; font-size: 10px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (max-width: 800px) {
+      .wrap { width: min(650px, calc(100% - 36px)); }
+      main { padding-top: 46px; }
+      .scanner { grid-template-columns: 1fr; }
+      .input-side { border-right: 0; border-bottom: 1px solid #e8ede9; }
+      .result-side { min-height: 395px; }
+    }
+    @media (max-width: 520px) {
+      .wrap { width: calc(100% - 28px); }
+      header { height: 68px; }
+      .header-note { font-size: 9px; }
+      main { padding: 38px 0 32px; }
+      .intro { margin-bottom: 25px; }
+      .intro p { font-size: 14px; }
+      .scanner { border-radius: 16px; }
+      .input-side, .result-side { padding: 21px 18px; }
+      .local-tag { font-size: 0; gap: 0; padding: 7px; }
+      .local-tag svg { width: 15px; height: 15px; }
+      textarea { min-height: 190px; }
+      .score-panel { gap: 13px; padding: 12px; }
+      .gauge { flex-basis: 100px; width: 100px; height: 100px; }
+      .gauge-value { font-size: 29px; }
+      .score-copy h3 { font-size: 17px; }
+      .below { flex-wrap: wrap; gap: 13px 19px; font-size: 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="wrap">
+      <header>
+        <a class="brand" href="#" aria-label="SignalCheck home">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 19 6v5.1c0 4.5-2.9 7.9-7 9.9-4.1-2-7-5.4-7-9.9V6l7-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.7 12.1 2.2 2.2 4.5-4.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          SignalCheck
+        </a>
+        <div class="header-note"><span class="pulse"></span> A little more certainty</div>
+      </header>
+
+      <main>
+        <section class="intro" aria-labelledby="main-title">
+          <div class="eyebrow"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5 17 6v4.2c0 3.7-2.9 6.3-7 7.8-4.1-1.5-7-4.1-7-7.8V6l7-3.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7.5 10 1.7 1.7 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Your message, checked in seconds</div>
+          <h1 id="main-title">Pause before<br>you click.</h1>
+          <p>Paste a suspicious message or link. SignalCheck looks for common phishing clues and helps you decide what to do next.</p>
+        </section>
+
+        <section class="scanner" aria-label="Suspicious message checker">
+          <div class="input-side">
+            <div class="section-top">
+              <div><h2>What would you like to check?</h2><p>Paste the message, link, or both below.</p></div>
+              <div class="local-tag" title="Your text stays on this device"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="4" y="8" width="12" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 8V5.5a3 3 0 0 1 6 0V8" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="12.5" r="1" fill="currentColor"/></svg> PRIVATE</div>
+            </div>
+            <label class="sr-only" for="message">Suspicious text or link</label>
+            <div class="input-shell">
+              <textarea id="message" maxlength="5000" placeholder="Example: Your account has been suspended. Verify your details now: https://account-check.example.com" aria-describedby="input-hint"></textarea>
+              <div class="input-meta"><span id="input-hint">Up to 5,000 characters</span><span id="char-count">0 / 5,000</span></div>
+            </div>
+            <div class="input-actions">
+              <button class="analyze" id="analyze" type="button"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M8.8 15.2a6.4 6.4 0 1 1 0-12.8 6.4 6.4 0 0 1 0 12.8Z" stroke="currentColor" stroke-width="1.7"/><path d="m13.5 13.5 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Check for warning signs</button>
+              <button class="quiet-button" id="clear" type="button">Clear</button>
+              <button class="example" id="sample" type="button">Try an example</button>
+            </div>
+          </div>
+
+          <div class="result-side" aria-live="polite" aria-atomic="false">
+            <div class="result-heading"><h2>Your check</h2><span class="result-state" id="result-state">Waiting for text</span></div>
+            <div class="score-panel">
+              <div class="gauge" id="gauge" role="img" aria-label="Risk score not calculated">
+                <div class="gauge-copy"><div class="gauge-value" id="score">—</div><div class="gauge-label">Risk score</div></div>
+              </div>
+              <div class="score-copy"><div class="risk-pill" id="risk-pill"><span class="dot"></span><span id="risk-level">Ready to check</span></div><h3 id="result-title">Your result will appear here</h3><p id="result-summary">Add a message or link, then run a check for common warning signs.</p></div>
+            </div>
+            <div class="findings">
+              <div class="findings-head"><h3>What we noticed</h3><span class="finding-count" id="finding-count">No check yet</span></div>
+              <div class="finding-list" id="finding-list"><div class="empty-finding"><span class="empty-icon"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5 17 6v4.2c0 3.7-2.9 6.3-7 7.8-4.1-1.5-7-4.1-7-7.8V6l7-3.5Z" stroke="currentColor" stroke-width="1.5"/><path d="M10 7v3.5m0 2.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><span>We’ll list any patterns we find here, with a short explanation.</span></div></div>
+            </div>
+            <div class="safety-note"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5 17 6v4.2c0 3.7-2.9 6.3-7 7.8-4.1-1.5-7-4.1-7-7.8V6l7-3.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7.5 10 1.7 1.7 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>This is a pattern check, not a guarantee. When in doubt, contact the organization through its official app or website.</span></div>
+          </div>
+        </section>
+
+        <div class="below" aria-label="How this checker works">
+          <span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="4" y="8" width="12" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 8V5.5a3 3 0 0 1 6 0V8" stroke="currentColor" stroke-width="1.5"/></svg> Analyzed on your device</span>
+          <span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5v15M2.5 10h15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.5"/></svg> No account needed</span>
+          <span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10.5 8 14l8-8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/></svg> Clear, explainable signals</span>
+        </div>
+      </main>
+      <footer>SignalCheck uses common phishing patterns and URL clues. It does not query live threat databases.</footer>
+    </div>
+  </div>
+  <script>
+    (function () {
+      'use strict';
+      var input = document.getElementById('message');
+      var count = document.getElementById('char-count');
+      var sample = 'Your account has been temporarily locked due to unusual activity. Verify your password immediately to avoid suspension: http://secure-account-check.example.com/login';
+      var rules = [
+        { id: 'credentials', points: 24, title: 'Asks for sensitive information', detail: 'Requests for passwords, one-time codes, or banking details are a common way to steal account access.', regex: /\b(password|passcode|one[- ]time code|verification code|security code|\botp\b|bank details|card details|social security number)\b/i },
+        { id: 'urgency', points: 14, title: 'Creates pressure to act quickly', detail: 'Urgent deadlines can push people to act before checking a message carefully.', regex: /\b(act now|immediately|urgent|within\s+\d+\s*(?:hours?|minutes?|days?)|final warning|right away|today only|expires? today)\b/i },
+        { id: 'account', points: 14, title: 'Threatens an account problem', detail: 'Claims that an account is locked, suspended, or at risk are often used to prompt a rushed sign-in.', regex: /\b(account.{0,25}(?:locked|suspended|restricted|will be closed)|(?:locked|suspended|restricted).{0,25}account|unusual activity|verify your account|account access)\b/i },
+        { id: 'payment', points: 12, title: 'Mentions a payment issue', detail: 'Unexpected invoices, failed payments, refunds, or transfer requests deserve an independent check.', regex: /\b(payment failed|past due|overdue invoice|unexpected invoice|refund pending|wire transfer|payment required|billing problem)\b/i },
+        { id: 'reward', points: 17, title: 'Offers a prize or reward', detail: 'Prize and gift claims can be used to lure people into sharing details or paying a fee.', regex: /\b(you(?:'| a)?re a winner|you have won|claim your (?:prize|reward|gift)|free gift|gift card|cash prize|exclusive reward)\b/i },
+        { id: 'delivery', points: 13, title: 'Uses a delivery or customs prompt', detail: 'Unexpected delivery fees and parcel problems are common bait in text-message scams.', regex: /\b(parcel delivery|missed delivery|delivery attempt|tracking fee|customs fee|package is on hold)\b/i },
+        { id: 'cta', points: 8, title: 'Pushes you to open a link or sign in', detail: 'A direct sign-in or link prompt is more concerning when combined with urgency or a threat.', regex: /\b(click here|open the link|sign in now|login now|confirm your details|update your details)\b/i }
+      ];
+      var trustedDomains = ['paypal.com', 'microsoft.com', 'apple.com', 'google.com', 'amazon.com', 'netflix.com', 'dhl.com', 'fedex.com', 'ups.com', 'chase.com'];
+      var brands = ['paypal', 'microsoft', 'apple', 'google', 'amazon', 'netflix', 'fedex', 'chase'];
+      var shorteners = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd', 'buff.ly', 'cutt.ly', 'rb.gy'];
+      var riskyTlds = ['.zip', '.click', '.top', '.work', '.country', '.gq', '.tk', '.xyz', '.rest', '.support'];
+      var urlPattern = /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+      var results = {
+        state: document.getElementById('result-state'), gauge: document.getElementById('gauge'), score: document.getElementById('score'),
+        pill: document.getElementById('risk-pill'), level: document.getElementById('risk-level'), title: document.getElementById('result-title'),
+        summary: document.getElementById('result-summary'), list: document.getElementById('finding-list'), findingCount: document.getElementById('finding-count')
+      };
+
+      input.addEventListener('input', function () { count.textContent = input.value.length.toLocaleString() + ' / 5,000'; });
+      document.getElementById('sample').addEventListener('click', function () { input.value = sample; input.dispatchEvent(new Event('input')); input.focus(); });
+      document.getElementById('clear').addEventListener('click', function () { input.value = ''; input.dispatchEvent(new Event('input')); input.focus(); resetResult(); });
+      document.getElementById('analyze').addEventListener('click', analyze);
+      input.addEventListener('keydown', function (event) { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') analyze(); });
+
+      function addFinding(items, points, title, detail, kind) { items.push({ points: points, title: title, detail: detail, kind: kind || 'text' }); }
+      function extractUrls(text) { return (text.match(urlPattern) || []).map(function (url) { return url.replace(/[),.!?;:\]]+$/g, ''); }); }
+      function getHost(raw) {
+        try {
+          var normalized = /^www\./i.test(raw) ? 'http://' + raw : raw;
+          var parsed = new URL(normalized);
+          return { host: parsed.hostname.toLowerCase(), protocol: parsed.protocol, href: parsed.href };
+        } catch (error) { return null; }
+      }
+      function editDistance(a, b) {
+        var row = Array.from({ length: b.length + 1 }, function (_, index) { return index; });
+        for (var i = 1; i <= a.length; i++) {
+          var previous = row[0]; row[0] = i;
+          for (var j = 1; j <= b.length; j++) {
+            var old = row[j]; row[j] = Math.min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1)); previous = old;
+          }
+        }
+        return row[b.length];
+      }
+      function analyzeUrl(raw, items) {
+        var info = getHost(raw);
+        if (!info) return;
+        var host = info.host;
+        if (info.protocol === 'http:') addFinding(items, 6, 'Link does not use HTTPS', 'The connection is not encrypted in transit. This alone does not prove a link is malicious.', 'url');
+        if (/xn--/i.test(host)) addFinding(items, 24, 'Punycode domain detected', 'Punycode can disguise lookalike characters in a web address. Check the domain carefully.', 'url');
+        if (/@/.test(raw.replace(/^https?:\/\//i, '').split('/')[0])) addFinding(items, 27, 'Link contains an @ sign before the host', 'Text before @ can make a different destination look like a familiar address.', 'url');
+        if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host)) addFinding(items, 21, 'Link points to a numeric IP address', 'A public-facing service using a raw IP instead of a recognizable domain can be harder to verify.', 'url');
+        if (shorteners.some(function (domain) { return host === domain || host.endsWith('.' + domain); })) addFinding(items, 8, 'Link uses a URL shortener', 'The final destination is hidden until the shortened link is opened.', 'url');
+        if (riskyTlds.some(function (suffix) { return host.endsWith(suffix); })) addFinding(items, 11, 'Domain uses a less common ending', 'This domain ending is sometimes used in throwaway scam sites. The ending alone is not proof of harm.', 'url');
+        var labels = host.split('.');
+        if (labels.length > 4) addFinding(items, 10, 'Unusually deep subdomain chain', 'Several nested subdomains can obscure which organization controls the actual domain.', 'url');
+        if (raw.length > 110) addFinding(items, 7, 'Unusually long link', 'Long links can hide tracking or redirect information. Review the destination before opening it.', 'url');
+        if ((raw.match(/%[0-9a-f]{2}/gi) || []).length >= 4) addFinding(items, 7, 'Link contains heavily encoded text', 'Encoded characters can make parts of a destination harder to read.', 'url');
+        if ((raw.match(/[?&]/g) || []).length > 6) addFinding(items, 5, 'Link has many query parameters', 'A large number of parameters can obscure where a link leads or how it behaves.', 'url');
+        var trusted = trustedDomains.some(function (domain) { return host === domain || host.endsWith('.' + domain); });
+        var brandMention = brands.find(function (brand) { return host.replace(/[^a-z0-9]/g, '').indexOf(brand) !== -1; });
+        if (brandMention && !trusted) addFinding(items, 24, 'Familiar brand appears in an unverified domain', 'A brand name in a subdomain or a different domain does not mean the brand owns the site.', 'url');
+        var core = labels.length > 1 ? labels[labels.length - 2] : host;
+        if (!brandMention) {
+          var nearBrand = brands.find(function (brand) { return core.length >= 5 && editDistance(core, brand) === 1; });
+          if (nearBrand && !trusted) addFinding(items, 22, 'Domain resembles a well-known brand', 'A one-character domain variation can be used to imitate a familiar organization.', 'url');
+        }
+      }
+      function analyze() {
+        var text = input.value.trim();
+        if (!text) {
+          input.focus(); input.setCustomValidity('Paste a message or link to check.'); input.reportValidity();
+          window.setTimeout(function () { input.setCustomValidity(''); }, 100);
+          return;
+        }
+        var findings = [];
+        rules.forEach(function (rule) { if (rule.regex.test(text)) addFinding(findings, rule.points, rule.title, rule.detail, 'text'); });
+        var urls = extractUrls(text);
+        if (urls.length > 3) addFinding(findings, 6, 'Several links in one message', 'Multiple links can make it harder to tell which destination is safe.', 'url');
+        urls.forEach(function (url) { analyzeUrl(url, findings); });
+        var rawScore = findings.reduce(function (sum, finding) { return sum + finding.points; }, 0);
+        var score = Math.min(100, rawScore);
+        render(score, findings);
+      }
+      function render(score, findings) {
+        var level, title, summary, color, state;
+        if (score >= 65) { level = 'High risk'; title = 'Treat this as suspicious'; summary = 'Several warning signs appeared. Avoid the link and verify the message through an official channel.'; color = '#c94f43'; state = 'Check complete'; }
+        else if (score >= 30) { level = 'Caution'; title = 'Take a closer look'; summary = 'Some warning signs appeared. Do not share details until you confirm who sent this.'; color = '#d18a28'; state = 'Check complete'; }
+        else { level = 'Lower risk'; title = findings.length ? 'A few things to review' : 'No common red flags found'; summary = findings.length ? 'We found limited signals. Check the sender and destination before acting.' : 'This message did not match the patterns we check. That does not confirm it is safe.'; color = '#39835d'; state = 'Check complete'; }
+        results.state.textContent = state;
+        results.score.textContent = String(score);
+        results.gauge.style.setProperty('--gauge-angle', (score * 3.6) + 'deg');
+        results.gauge.style.setProperty('--gauge-color', color);
+        results.gauge.setAttribute('aria-label', 'Risk score ' + score + ' out of 100, ' + level);
+        results.pill.style.color = color;
+        results.pill.style.background = score >= 65 ? '#fff0ee' : score >= 30 ? '#fff5e8' : '#eaf4ed';
+        results.pill.querySelector('.dot').style.background = color;
+        results.level.textContent = level;
+        results.title.textContent = title;
+        results.summary.textContent = summary;
+        results.findingCount.textContent = findings.length ? findings.length + (findings.length === 1 ? ' signal found' : ' signals found') : 'No signals found';
+        if (!findings.length) {
+          results.list.innerHTML = '<div class="empty-finding"><span class="empty-icon"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 10 3.2 3.2L15.5 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>No matching warning patterns found. Keep checking the sender and context.</span></div>';
+          return;
+        }
+        findings.sort(function (a, b) { return b.points - a.points; });
+        results.list.innerHTML = findings.map(function (finding) {
+          var icon = finding.kind === 'url' ? '↗' : '!';
+          return '<div class="finding"><span class="finding-icon" aria-hidden="true">' + icon + '</span><div><div class="finding-title">' + escapeHtml(finding.title) + '</div><div class="finding-detail">' + escapeHtml(finding.detail) + '</div></div><span class="finding-points">+' + finding.points + '</span></div>';
+        }).join('');
+      }
+      function escapeHtml(value) { return value.replace(/[&<>"']/g, function (char) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]; }); }
+      function resetResult() {
+        results.state.textContent = 'Waiting for text'; results.score.textContent = '—';
+        results.gauge.style.setProperty('--gauge-angle', '0deg'); results.gauge.style.setProperty('--gauge-color', '#b9c8bd');
+        results.gauge.setAttribute('aria-label', 'Risk score not calculated');
+        results.pill.style.color = '#61776a'; results.pill.style.background = '#edf3ee'; results.pill.querySelector('.dot').style.background = '#91a398';
+        results.level.textContent = 'Ready to check'; results.title.textContent = 'Your result will appear here';
+        results.summary.textContent = 'Add a message or link, then run a check for common warning signs.';
+        results.findingCount.textContent = 'No check yet';
+        results.list.innerHTML = '<div class="empty-finding"><span class="empty-icon"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5 17 6v4.2c0 3.7-2.9 6.3-7 7.8-4.1-1.5-7-4.1-7-7.8V6l7-3.5Z" stroke="currentColor" stroke-width="1.5"/><path d="M10 7v3.5m0 2.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><span>We’ll list any patterns we find here, with a short explanation.</span></div>';
+      }
+    }());
+  </script>
+</body>
+</html>
